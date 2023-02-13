@@ -7,30 +7,25 @@ dialog_texts = pd.read_pickle('./data/dialog_texts')
 classifier = pipeline("text-classification",
                       model="j-hartmann/emotion-english-distilroberta-base", top_k=None)
 
-meta_cols = ['movie_id', 'title', 'year', 'rating', 'no. votes', 'genres']
-meta = pd.read_table(
-    './datasets/movie-dialog-corpus/movie_titles_metadata.tsv', sep='\t', header=None, names=meta_cols, index_col='movie_id')
-
-def get_emotion_feats(classifier_res: list[list[dict]]):
+def get_emotion_feats(classifier_res):
     return {x['label']: x['score'] for x in classifier_res[0]}
 
-
-def get_dialog_emotions(df):
-    for i in range(df.shape[0]):
-        dialog = df.iloc[i]
-        feats = get_emotion_feats(classifier(dialog.text))
-        feats['movie_id'] = dialog.movie_id
-        feats['text'] = dialog.text
+def get_emotions(texts):
+    for i in tqdm(range(texts.shape[0])):
+        row = texts.iloc[i]
+        feats = get_emotion_feats(classifier(row.text))
+        feats['movie_id'] = row.movie_id
+        feats['text'] = row.text
         yield feats
 
-def get_movie_emots(movie_id):
-    return pd.DataFrame(get_dialog_emotions(dialog_texts[dialog_texts['movie_id'] == movie_id]))
+movie_emots = pd.DataFrame()
 
-movie_emots = pd.read_pickle('data/movie_emots_1')
-
-for i in tqdm(range(100, meta.shape[0])):
-    movie = meta.iloc[i]
-    movie_id = meta.index[i]
-    emots = get_movie_emots(movie_id)
-    movie_emots = pd.concat([movie_emots, emots])
-    movie_emots.to_pickle('data/movie_emots_1')
+done_movies = 0
+curr_mid = None
+for emot in get_emotions(dialog_texts):
+    if curr_mid != emot['movie_id']:
+        done_movies += 1
+        curr_mid = emot['movie_id']
+    edf = pd.DataFrame([emot])
+    movie_emots = pd.concat([movie_emots, edf])
+    movie_emots.to_pickle('./data/movie_emots')
