@@ -24,12 +24,13 @@ movie_emot_feats = pd.read_pickle('./data/movie_emot_feats')
 
 from_i = len(movie_emot_feats)
 save_interval = 100
-i = 0
+mid = None
 for emot in get_emot_feats(dialog_texts, from_i):
     movie_emot_feats = pd.concat([movie_emot_feats, pd.DataFrame([emot])])
-    i += 1
-    if i == save_interval:
-        i = 0
+    if not mid:
+        mid = emot['movie_id']
+    elif mid != emot['movie_id']:
+        mid = emot['movie_id']
         movie_emot_feats.to_pickle('./data/movie_emot_feats')
 
 movie_emot_feats.to_pickle('./data/movie_emot_feats')
